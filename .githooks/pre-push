@@ -1,0 +1,23 @@
+#!/bin/sh
+while read local_ref local_sha remote_ref remote_sha; do
+    case "$remote_ref" in
+        refs/heads/master)
+            if [ "$1" != "upstream" ]; then
+                echo "error: direct push to 'master' on '$1' is not allowed."
+                echo "       'master' is reserved for syncing with upstream."
+                exit 1
+            fi
+            ;;
+        refs/heads/release)
+            # Only allow pushes that look like merges (more than one parent).
+            # A fast-forward of a merge commit is fine; a plain commit is not.
+            parent_count=$(git cat-file -p "$local_sha" | grep -c "^parent ")
+            if [ "$parent_count" -lt 2 ]; then
+                echo "error: direct push to 'release' is not allowed."
+                echo "       'release' receives merges from 'development' only."
+                exit 1
+            fi
+            ;;
+    esac
+done
+exit 0

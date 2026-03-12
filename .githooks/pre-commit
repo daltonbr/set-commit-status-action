@@ -1,0 +1,15 @@
+#!/bin/sh
+branch=$(git symbolic-ref HEAD 2>/dev/null | sed 's|refs/heads/||')
+case "$branch" in
+    master)
+        echo "error: direct commits to 'master' are not allowed."
+        echo "       'master' is reserved for syncing with upstream."
+        echo "       Commit to 'development' or a feature branch instead."
+        exit 1
+        ;;
+    release)
+        echo "error: direct commits to 'release' are not allowed."
+        echo "       'release' receives merges from 'development' only."
+        exit 1
+        ;;
+esac
