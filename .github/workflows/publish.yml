@@ -1,0 +1,69 @@
+name: 'Publish Release'
+run-name: 'Publish v${{ inputs.version }} from ${{ github.ref_name }} by @${{ github.actor }}'
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 3.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish v${{ inputs.version }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: 'package.json'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run all
+
+      - name: Fail if dist/ is stale
+        run: |
+          if ! git diff --quiet dist/; then
+            echo "::error::dist/ is out of date. Run the 'Build dist/' workflow on this branch first."
+            git diff --stat dist/
+            exit 1
+          fi
+
+      - name: Bump version in package.json
+        # --no-git-tag-version prevents npm from creating its own commit and tag.
+        # We handle both explicitly in the next steps so we control the commit
+        # message convention and ensure the tag points to the pushed commit.
+        run: npm version ${{ inputs.version }} --no-git-tag-version
+
+      - name: Commit and push version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore: release v${{ inputs.version }}"
+          git push
+
+      - name: Create and push tag
+        run: |
+          git tag "v${{ inputs.version }}"
+          git push origin "v${{ inputs.version }}"
+
+      - name: Create draft GitHub Release
+        run: |
+          gh release create "v${{ inputs.version }}" \
+            --title "v${{ inputs.version }}" \
+            --draft \
+            --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
