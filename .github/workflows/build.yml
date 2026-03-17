@@ -1,0 +1,47 @@
+name: 'Build dist/'
+run-name: 'Build dist/ on ${{ github.ref_name }} by @${{ github.actor }}'
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and commit dist/
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: 'package.json'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run all
+
+      - name: Commit dist/ if changed
+        run: |
+          if ! git diff --quiet dist/; then
+            echo "## dist/ was rebuilt and committed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            git diff --stat dist/ >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add dist/
+            git commit -m "chore: rebuild dist/"
+            git push
+          else
+            echo "dist/ is already up to date, nothing to commit."
+            echo "## dist/ is already up to date" >> $GITHUB_STEP_SUMMARY
+            echo "No rebuild was necessary — the committed bundle matches the current source and dependencies." >> $GITHUB_STEP_SUMMARY
+          fi
