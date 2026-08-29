@@ -25,12 +25,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/myrotvorets-team/set-commit-status-action.git"
+    "url": "git+https://github.com/daltonbr/set-commit-status-action.git"
   },
   "bugs": {
-    "url": "https://github.com/myrotvorets-team/set-commit-status-action/issues"
+    "url": "https://github.com/daltonbr/set-commit-status-action/issues"
   },
-  "homepage": "https://github.com/myrotvorets-team/set-commit-status-action#readme",
+  "homepage": "https://github.com/daltonbr/set-commit-status-action#readme",
   "engines": {
     "node": "24"
   }
