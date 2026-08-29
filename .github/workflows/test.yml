@@ -1,3 +1,8 @@
+# Builds the action and then runs it against itself ("Self Check") to prove the
+# committed dist/ actually works. Also warns, without failing, when dist/ no
+# longer matches src/; the blocking version of that check lives in publish.yml,
+# because a stale bundle only reaches users at release time.
+
 name: 'Build and Test'
 
 on:
@@ -62,6 +67,11 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           status: pending
           context: 'Self Check'
+          # The action resolves the SHA itself for pull_request and push, but
+          # not for workflow_dispatch. Left empty elsewhere on purpose: on a
+          # pull request github.sha is the merge commit, so passing it
+          # unconditionally would move the status off the PR head.
+          sha: ${{ github.event_name == 'workflow_dispatch' && github.sha || '' }}
 
       - name: Set final commit status
         uses: ./
@@ -70,3 +80,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           status: ${{ job.status }}
           context: 'Self Check'
+          # The action resolves the SHA itself for pull_request and push, but
+          # not for workflow_dispatch. Left empty elsewhere on purpose: on a
+          # pull request github.sha is the merge commit, so passing it
+          # unconditionally would move the status off the PR head.
+          sha: ${{ github.event_name == 'workflow_dispatch' && github.sha || '' }}
