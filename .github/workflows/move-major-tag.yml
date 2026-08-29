@@ -22,6 +22,12 @@ on:
 permissions:
   contents: write
 
+# Serialized so two releases published close together cannot race and leave the
+# alias on whichever job happened to push last.
+concurrency:
+  group: move-major-tag
+  cancel-in-progress: false
+
 jobs:
   move-major-tag:
     name: Move major version tag
@@ -35,17 +41,47 @@ jobs:
 
       - name: Move the major version alias
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.event.release.tag_name }}
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
         run: |
-          # Stable releases only. A prerelease such as vX.Y.Z-beta.1 must not
-          # drag the alias onto itself.
-          if ! printf '%s' "${TAG}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::notice::${TAG} is not a stable vX.Y.Z tag, leaving the major alias unchanged."
-            echo "\`${TAG}\` is not a stable \`vX.Y.Z\` tag, so the major alias was left alone." >> "${GITHUB_STEP_SUMMARY}"
+          skip() {
+            echo "::notice::$1"
+            echo "$1" >> "${GITHUB_STEP_SUMMARY}"
             exit 0
+          }
+
+          # Stable releases only. Both checks are needed: a release can be
+          # flagged as a prerelease while still carrying a stable-looking tag,
+          # and a tag such as vX.Y.Z-beta.1 can be published without the flag.
+          if [ "${IS_PRERELEASE}" = "true" ]; then
+            skip "${TAG} is flagged as a prerelease, so the major alias was left unchanged."
+          fi
+
+          if ! printf '%s' "${TAG}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            skip "${TAG} is not a stable vX.Y.Z tag, so the major alias was left unchanged."
           fi
 
           major="${TAG%%.*}"
+
+          # The alias must never move backward. Re-running an older release's
+          # job, or publishing a draft that predates a newer release, would
+          # otherwise drag consumers back onto older code, which is the exact
+          # failure this workflow exists to prevent.
+          newest="$(gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+            --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name' \
+            | grep -E "^${major}\.[0-9]+\.[0-9]+$" \
+            | sort -V | tail -1)"
+
+          if [ -z "${newest}" ]; then
+            echo "::error::Found no published stable release for ${major}, but ${TAG} is one."
+            exit 1
+          fi
+
+          if [ "${newest}" != "${TAG}" ]; then
+            skip "${newest} is newer than ${TAG}, so ${major} was left pointing at ${newest}."
+          fi
+
           sha="$(git rev-parse "${TAG}^{commit}")"
 
           git config user.name "github-actions[bot]"
