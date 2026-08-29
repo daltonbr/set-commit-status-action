@@ -4,22 +4,34 @@ zero_sha="0000000000000000000000000000000000000000"
 while read local_ref local_sha remote_ref remote_sha; do
     case "$remote_ref" in
         refs/heads/master)
-            if [ "$1" != "upstream" ]; then
-                echo "error: direct push to 'master' on '$1' is not allowed."
-                echo "       'master' is reserved for syncing with upstream."
+            # 'master' is a 1:1 mirror of upstream. Fast-forwarding it is how
+            # the mirror is maintained and must be allowed on any remote.
+            # Anything else means local work has landed on the mirror.
+            if [ "$local_sha" = "$zero_sha" ]; then
+                echo "error: refusing to delete 'master'."
+                echo "       'master' is the upstream mirror."
                 exit 1
             fi
-            ;;
-        refs/heads/release)
-            # Allow initial branch creation (remote_sha is all zeros)
-            if [ "$remote_sha" = "$zero_sha" ]; then
-                continue
+
+            if [ "$remote_sha" != "$zero_sha" ] &&
+               ! git merge-base --is-ancestor "$remote_sha" "$local_sha"; then
+                echo "error: non-fast-forward push to 'master' is not allowed."
+                echo "       'master' mirrors upstream and should only fast-forward."
+                exit 1
             fi
-            # After that, only merge commits may be pushed
-            parent_count=$(git cat-file -p "$local_sha" | grep -c "^parent ")
-            if [ "$parent_count" -lt 2 ]; then
-                echo "error: direct push to 'release' is not allowed."
-                echo "       'release' receives merges from 'development' only."
+
+            # Fast-forwarding alone does not prove the mirror is intact: a commit
+            # made locally on 'master' fast-forwards too. Everything on 'master'
+            # must already exist upstream. Checked against the remote-tracking
+            # ref, so there is no network access; when that ref is missing the
+            # check is skipped and only the fast-forward rule applies.
+            if git rev-parse --verify -q refs/remotes/upstream/master >/dev/null &&
+               ! git merge-base --is-ancestor "$local_sha" refs/remotes/upstream/master; then
+                echo "error: 'master' carries commits that are not in upstream/master."
+                echo "       'master' is a 1:1 mirror and must not hold local work."
+                echo "       If it is merely out of date, run: git fetch upstream"
+                echo "       If commits landed there by mistake, move them to a"
+                echo "       branch, then: git reset --hard upstream/master"
                 exit 1
             fi
             ;;
