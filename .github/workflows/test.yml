@@ -4,6 +4,7 @@
 # because a stale bundle only reaches users at release time.
 
 name: 'Build and Test'
+run-name: "Build and Test | ${{ github.event_name == 'pull_request' && format('PR #{0} by @{1}', github.event.pull_request.number, github.event.pull_request.user.login) || format('Branch: {0} by @{1}', github.ref_name, github.actor) }}"
 
 on:
   push:
