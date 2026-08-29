@@ -1,6 +1,6 @@
 import { getInput, info, setFailed, warning } from '@actions/core';
 import { getOctokit } from '@actions/github';
-import { RequestError } from '@octokit/request-error';
+import type { RequestError } from '@octokit/request-error';
 import {
     CommitStatusState,
     getCommitHash,
