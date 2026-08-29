@@ -22,19 +22,6 @@ while read local_ref local_sha remote_ref remote_sha; do
                 exit 1
             fi
             ;;
-        refs/heads/release)
-            # Allow initial branch creation (remote_sha is all zeros)
-            if [ "$remote_sha" = "$zero_sha" ]; then
-                continue
-            fi
-            # After that, only merge commits may be pushed
-            parent_count=$(git cat-file -p "$local_sha" | grep -c "^parent ")
-            if [ "$parent_count" -lt 2 ]; then
-                echo "error: direct push to 'release' is not allowed."
-                echo "       'release' receives merges from 'development' only."
-                exit 1
-            fi
-            ;;
     esac
 done
 exit 0

@@ -1,12 +1,16 @@
-# Moves the major version alias tag (v3) onto the commit a release points at,
-# so that `uses: daltonbr/set-commit-status-action@v3` resolves to the newest
-# 3.x instead of whichever 3.x happened to be tagged first.
+# Keeps the major version alias tag in step with releases. Publishing a release
+# tagged vX.Y.Z repoints vX at the same commit, so a consumer pinned to the
+# major alias gets the newest release in that line rather than whichever one
+# happened to be tagged first.
+#
+# The alias is derived from the release tag, so this needs no changes when the
+# major version changes, and it creates the alias if it does not exist yet.
 #
 # Triggered by publishing a release rather than by publish.yml, which only
 # creates a draft. Moving the alias at draft time would hand the new code to
-# every @v3 consumer before the release had been reviewed, and discarding the
-# draft afterwards would leave the alias pointing at a release that no longer
-# exists.
+# everyone pinned to it before the release had been reviewed, and discarding
+# that draft afterwards would leave the alias pointing at a release that no
+# longer exists.
 
 name: 'Move Major Version Tag'
 run-name: "Move Major Version Tag | ${{ github.event.release.tag_name }} by @${{ github.actor }}"
@@ -33,7 +37,7 @@ jobs:
         env:
           TAG: ${{ github.event.release.tag_name }}
         run: |
-          # Stable releases only. A prerelease such as v3.1.0-beta.1 must not
+          # Stable releases only. A prerelease such as vX.Y.Z-beta.1 must not
           # drag the alias onto itself.
           if ! printf '%s' "${TAG}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "::notice::${TAG} is not a stable vX.Y.Z tag, leaving the major alias unchanged."
@@ -48,7 +52,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # --force is required and expected here: moving the alias is the whole
-          # point, and it is how every action does major version pinning.
+          # point, and it is how actions do major version pinning. It also
+          # creates the alias on a first release of a new major version.
           git tag -f "${major}" "${sha}"
           git push --force origin "refs/tags/${major}"
 
