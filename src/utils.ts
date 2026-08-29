@@ -3,6 +3,48 @@ import type { PullRequest } from '@octokit/webhooks-types';
 
 export type CommitStatusState = 'error' | 'failure' | 'pending' | 'success';
 
+/**
+ * The shape we read off a failed API call. Only the one field we actually use,
+ * described locally rather than imported from `@octokit/request-error`.
+ *
+ * Every level is optional because none of it is guaranteed: the throw may not be
+ * a request error at all, and `data` has been observed as `null`. Reading it
+ * structurally also avoids `instanceof RequestError`, which fails silently when
+ * more than one copy of that package ends up in the tree.
+ */
+interface RequestErrorLike {
+    message?: string;
+    response?: {
+        data?: {
+            errors?: unknown;
+        };
+    };
+}
+
+/**
+ * Returns the most specific message available for a failed API call.
+ *
+ * The GitHub API sometimes puts a useful explanation in `response.data.errors`
+ * while `error.message` is only "Validation Failed". Prefer the former when it
+ * is a string, and fall back to the error's own message otherwise.
+ */
+export function getApiErrorMessage(error: unknown): string {
+    const errorLike = error as RequestErrorLike | null;
+
+    if (typeof errorLike?.response?.data?.errors === 'string') {
+        return errorLike.response.data.errors;
+    }
+
+    // Read `message` structurally rather than testing `instanceof Error`, for the
+    // same reason as above, and so an error-like object that carries a message
+    // still reports it instead of being stringified to "[object Object]".
+    if (typeof errorLike?.message === 'string') {
+        return errorLike.message;
+    }
+
+    return String(error);
+}
+
 function isPullRequest(): boolean {
     return context.eventName === 'pull_request';
 }

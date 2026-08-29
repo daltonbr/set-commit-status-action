@@ -8,8 +8,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "package": "ncc build --minify",
-    "test": "exit 0",
-    "all": "npm run build && npm run lint:fix && npm run package && npm test"
+    "test": "npm run build && npm run test:unit",
+    "all": "npm run build && npm run lint:fix && npm run package && npm run test:unit",
+    "test:unit": "node --test \"tests/*.test.js\""
   },
   "keywords": [],
   "author": "Myrotvorets <support@myrotvorets.center> (https://myrotvorets.center/)",
@@ -21,6 +22,7 @@
     "@octokit/webhooks-types": "^7.3.1",
     "@types/node": "^24.0.0",
     "@vercel/ncc": "^0.45.0",
+    "globals": "^17.11.0",
     "typescript": "^5.3.3"
   },
   "repository": {
