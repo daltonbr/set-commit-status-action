@@ -1,8 +1,8 @@
 import { getInput, info, setFailed, warning } from '@actions/core';
 import { getOctokit } from '@actions/github';
-import type { RequestError } from '@octokit/request-error';
 import {
     CommitStatusState,
+    getApiErrorMessage,
     getCommitHash,
     isForeignPullRequest,
     parseRepoName,
@@ -19,10 +19,6 @@ interface Inputs {
     targetUrl?: string;
     description?: string;
     context?: string;
-}
-
-interface ValidationFailedError {
-    errors: object | string;
 }
 
 function getInputs(): Inputs {
@@ -71,18 +67,7 @@ async function run(): Promise<void> {
             context: inputs.context,
         });
     } catch (error) {
-        let foundMoreElaborateError = false;
-        const reqError = error as RequestError;
-        if (reqError.response !== undefined) {
-            const errorData = reqError.response.data as ValidationFailedError;
-            if (typeof errorData.errors === 'string') {
-                foundMoreElaborateError = true;
-                setFailed(errorData.errors);
-            }
-        }
-        if (!foundMoreElaborateError) {
-            setFailed((error as Error).message);
-        }
+        setFailed(getApiErrorMessage(error));
     }
 }
 
