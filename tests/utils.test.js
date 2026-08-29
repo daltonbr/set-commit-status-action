@@ -43,6 +43,10 @@ describe('getApiErrorMessage', () => {
         strictEqual(getApiErrorMessage(error), 'Server Error');
     });
 
+    it('uses the message from an error-like object', () => {
+        strictEqual(getApiErrorMessage({ message: 'Bad credentials' }), 'Bad credentials');
+    });
+
     it('handles a thrown value that is not an Error', () => {
         strictEqual(getApiErrorMessage('boom'), 'boom');
     });

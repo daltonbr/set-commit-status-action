@@ -13,6 +13,7 @@ export type CommitStatusState = 'error' | 'failure' | 'pending' | 'success';
  * more than one copy of that package ends up in the tree.
  */
 interface RequestErrorLike {
+    message?: string;
     response?: {
         data?: {
             errors?: unknown;
@@ -28,12 +29,20 @@ interface RequestErrorLike {
  * is a string, and fall back to the error's own message otherwise.
  */
 export function getApiErrorMessage(error: unknown): string {
-    const data = (error as RequestErrorLike | null)?.response?.data;
-    if (typeof data?.errors === 'string') {
-        return data.errors;
+    const errorLike = error as RequestErrorLike | null;
+
+    if (typeof errorLike?.response?.data?.errors === 'string') {
+        return errorLike.response.data.errors;
     }
 
-    return error instanceof Error ? error.message : String(error);
+    // Read `message` structurally rather than testing `instanceof Error`, for the
+    // same reason as above, and so an error-like object that carries a message
+    // still reports it instead of being stringified to "[object Object]".
+    if (typeof errorLike?.message === 'string') {
+        return errorLike.message;
+    }
+
+    return String(error);
 }
 
 function isPullRequest(): boolean {
