@@ -4,9 +4,21 @@ zero_sha="0000000000000000000000000000000000000000"
 while read local_ref local_sha remote_ref remote_sha; do
     case "$remote_ref" in
         refs/heads/master)
-            if [ "$1" != "upstream" ]; then
-                echo "error: direct push to 'master' on '$1' is not allowed."
-                echo "       'master' is reserved for syncing with upstream."
+            # 'master' is a 1:1 mirror of upstream. Fast-forwarding it is how
+            # the mirror is maintained and must be allowed on any remote.
+            # Anything else means local work has landed on the mirror.
+            if [ "$local_sha" = "$zero_sha" ]; then
+                echo "error: refusing to delete 'master'."
+                echo "       'master' is the upstream mirror."
+                exit 1
+            fi
+
+            if [ "$remote_sha" != "$zero_sha" ] &&
+               ! git merge-base --is-ancestor "$remote_sha" "$local_sha"; then
+                echo "error: non-fast-forward push to 'master' is not allowed."
+                echo "       'master' mirrors upstream and should only fast-forward."
+                echo "       If local commits ended up on 'master', move them to a"
+                echo "       branch and reset 'master' to upstream/master."
                 exit 1
             fi
             ;;

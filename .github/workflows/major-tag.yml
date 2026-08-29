@@ -1,0 +1,62 @@
+# Moves the major version alias tag (v3) onto the commit a release points at,
+# so that `uses: daltonbr/set-commit-status-action@v3` resolves to the newest
+# 3.x instead of whichever 3.x happened to be tagged first.
+#
+# Triggered by publishing a release rather than by publish.yml, which only
+# creates a draft. Moving the alias at draft time would hand the new code to
+# every @v3 consumer before the release had been reviewed, and discarding the
+# draft afterwards would leave the alias pointing at a release that no longer
+# exists.
+
+name: 'Move Major Version Tag'
+run-name: "Move Major Version Tag | ${{ github.event.release.tag_name }} by @${{ github.actor }}"
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  move-major-tag:
+    name: Move major version tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Tags are needed to resolve the release tag to a commit.
+          fetch-depth: 0
+
+      - name: Move the major version alias
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          # Stable releases only. A prerelease such as v3.1.0-beta.1 must not
+          # drag the alias onto itself.
+          if ! printf '%s' "${TAG}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::notice::${TAG} is not a stable vX.Y.Z tag, leaving the major alias unchanged."
+            echo "\`${TAG}\` is not a stable \`vX.Y.Z\` tag, so the major alias was left alone." >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+
+          major="${TAG%%.*}"
+          sha="$(git rev-parse "${TAG}^{commit}")"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # --force is required and expected here: moving the alias is the whole
+          # point, and it is how every action does major version pinning.
+          git tag -f "${major}" "${sha}"
+          git push --force origin "refs/tags/${major}"
+
+          echo "Moved ${major} to ${sha} (${TAG})."
+          {
+            echo "## Moved \`${major}\` to \`${TAG}\`"
+            echo
+            echo "\`${major}\` now points at \`${sha}\`."
+            echo
+            echo "Consumers pinned to \`${GITHUB_REPOSITORY}@${major}\` will pick this up."
+          } >> "${GITHUB_STEP_SUMMARY}"
