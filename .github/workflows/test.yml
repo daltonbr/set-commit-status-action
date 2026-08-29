@@ -1,4 +1,10 @@
+# Builds the action and then runs it against itself ("Self Check") to prove the
+# committed dist/ actually works. Also warns, without failing, when dist/ no
+# longer matches src/; the blocking version of that check lives in publish.yml,
+# because a stale bundle only reaches users at release time.
+
 name: 'Build and Test'
+run-name: "Build and Test | ${{ github.event_name == 'pull_request' && format('PR #{0} by @{1}', github.event.pull_request.number, github.event.pull_request.user.login) || format('Branch: {0} by @{1}', github.ref_name, github.actor) }}"
 
 on:
   push:
@@ -62,6 +68,10 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           status: pending
           context: 'Self Check'
+          # Only workflow_dispatch needs a SHA; the action works it out itself
+          # otherwise. Empty rather than github.sha because on a pull request
+          # that is the merge commit, not the PR head.
+          sha: ${{ github.event_name == 'workflow_dispatch' && github.sha || '' }}
 
       - name: Set final commit status
         uses: ./
@@ -70,3 +80,4 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           status: ${{ job.status }}
           context: 'Self Check'
+          sha: ${{ github.event_name == 'workflow_dispatch' && github.sha || '' }}

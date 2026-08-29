@@ -1,0 +1,55 @@
+# Enforces the source-only contribution policy described in CONTRIBUTING.md:
+# outside contributors change src/, and the maintainer regenerates dist/ after
+# merge via the "Build dist/" workflow.
+#
+# Kept separate from test.yml on purpose. That workflow skips jobs on [ci skip]
+# in the commit message, and a policy check the contributor can switch off from
+# their own commit message would not be one.
+
+name: 'Contribution Policy'
+run-name: "Contribution Policy | PR #${{ github.event.pull_request.number }} by @${{ github.event.pull_request.user.login }}"
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  no-dist-in-forks:
+    name: No dist/ changes from forks
+    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check that the pull request does not modify dist/
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          changed="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" --jq '.[].filename')"
+          offenders="$(printf '%s\n' "${changed}" | grep '^dist/' || true)"
+
+          if [ -z "${offenders}" ]; then
+            echo "No dist/ changes in this pull request."
+            exit 0
+          fi
+
+          echo "::error::This pull request modifies dist/. Please change src/ only."
+          {
+            echo "## Please drop \`dist/\` from this pull request"
+            echo
+            echo "\`dist/\` is generated. The maintainer rebuilds and commits it after merge,"
+            echo "so there is nothing you need to do beyond leaving it out."
+            echo
+            echo "See [CONTRIBUTING.md](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/HEAD/CONTRIBUTING.md)."
+            echo
+            echo "Files to remove from this pull request:"
+            echo
+            echo '```'
+            printf '%s\n' "${offenders}"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+          exit 1
