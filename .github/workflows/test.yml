@@ -68,10 +68,9 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           status: pending
           context: 'Self Check'
-          # The action resolves the SHA itself for pull_request and push, but
-          # not for workflow_dispatch. Left empty elsewhere on purpose: on a
-          # pull request github.sha is the merge commit, so passing it
-          # unconditionally would move the status off the PR head.
+          # Only workflow_dispatch needs a SHA; the action works it out itself
+          # otherwise. Empty rather than github.sha because on a pull request
+          # that is the merge commit, not the PR head.
           sha: ${{ github.event_name == 'workflow_dispatch' && github.sha || '' }}
 
       - name: Set final commit status
@@ -81,8 +80,4 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           status: ${{ job.status }}
           context: 'Self Check'
-          # The action resolves the SHA itself for pull_request and push, but
-          # not for workflow_dispatch. Left empty elsewhere on purpose: on a
-          # pull request github.sha is the merge commit, so passing it
-          # unconditionally would move the status off the PR head.
           sha: ${{ github.event_name == 'workflow_dispatch' && github.sha || '' }}
