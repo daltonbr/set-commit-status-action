@@ -44,3 +44,8 @@ npm run all       # all of the above
 Running `npm run all` is a good way to confirm your change compiles and lints.
 It will modify `dist/` as a side effect. That is fine, just leave those changes
 out of your commits.
+
+To try your change in a real workflow, commit the built `dist/` to a separate
+branch in your fork and point a workflow at it with
+`uses: <your-user>/set-commit-status-action@<that-branch>`. Open the pull
+request from a branch without that commit.
