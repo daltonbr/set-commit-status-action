@@ -2,6 +2,10 @@
   "compilerOptions": {
       "target": "es2019",
       "module": "CommonJS",
+      // Pinned so the emit layout cannot shift. Without it tsc infers rootDir
+      // from the inputs, and any file added outside src/ would relocate the
+      // output to lib/src/, breaking the "main" entry that ncc bundles from.
+      "rootDir": "./src",
       "noEmitOnError": true,
       "outDir": "./lib",
       "sourceMap": false,
@@ -18,5 +22,5 @@
       ]
   },
   "compileOnSave": true,
-  "include": ["src/**.ts", "tests/**.ts"]
+  "include": ["src/**.ts"]
 }
