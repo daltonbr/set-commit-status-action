@@ -54,4 +54,23 @@ describe('getApiErrorMessage', () => {
     it('handles a thrown null', () => {
         strictEqual(getApiErrorMessage(null), 'null');
     });
+
+    it('handles a thrown undefined', () => {
+        strictEqual(getApiErrorMessage(undefined), 'undefined');
+    });
+
+    it('does not throw when the response is null', () => {
+        const error = Object.assign(new Error('Not Found'), { response: null });
+
+        strictEqual(getApiErrorMessage(error), 'Not Found');
+    });
+
+    it('falls back to the message when data is not an object', () => {
+        // e.g. a proxy returning an HTML error page instead of JSON.
+        for (const data of ['<html>Bad Gateway</html>', 502]) {
+            const error = Object.assign(new Error('Bad Gateway'), { response: { data } });
+
+            strictEqual(getApiErrorMessage(error), 'Bad Gateway');
+        }
+    });
 });
